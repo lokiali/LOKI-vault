@@ -1352,7 +1352,7 @@ requests.post('https://YOUR_DOMAIN/api/archive',<br>
 // ============================================================
 // GLOBALS
 // ============================================================
-let supabase = null;
+let supabaseClient = null;
 let currentUser = null;
 let currentProfile = null;
 let keyVisible = false;
@@ -1364,12 +1364,12 @@ const DEMO_PASS  = 'demo1234';
 // ============================================================
 function initSupabase() {
   try {
-    if (SUPABASE_URL === 'https://zatboctyiagjvnducxzi.supabase.co' || !SUPABASE_ANON_KEY || SUPABASE_ANON_KEY === 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InphdGJvY3R5aWFnanZuZHVjeHppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NDQxODgsImV4cCI6MjA5NTIyMDE4OH0.2rBMOBwbOSgjOWOomCXDayZ3ONmmljdrcjoPhVdUqhg') {
+    if (SUPABASE_URL === 'https://YOUR_PROJECT.supabase.co' || !SUPABASE_ANON_KEY || SUPABASE_ANON_KEY === 'YOUR_ANON_KEY_HERE') {
       console.warn('⚠️ Supabase not configured — running in demo mode');
       showNotice();
       return false;
     }
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     return true;
   } catch(e) {
     console.warn('Supabase init failed:', e);
@@ -1474,7 +1474,7 @@ async function handleRegister() {
   btn.disabled = true;
   btn.querySelector('span').textContent = '⏳ جاري إنشاء الحساب...';
 
-  if (!supabase) {
+  if (!supabaseClient) {
     // Demo mode
     await fakeDelay(1200);
     const fakeKey = generateApiKey();
@@ -1489,7 +1489,7 @@ async function handleRegister() {
 
   try {
     // 1. Create auth user
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    const { data: authData, error: authError } = await supabaseClient.auth.signUp({
       email, password: pass,
       options: { data: { full_name: name } }
     });
@@ -1500,7 +1500,7 @@ async function handleRegister() {
     const apiKey = generateApiKey();
 
     // 2. Insert profile
-    const { error: profileError } = await supabase.from('profiles').insert({
+    const { error: profileError } = await supabaseClient.from('profiles').insert({
       id: userId,
       full_name: name,
       email,
@@ -1546,7 +1546,7 @@ async function handleLogin() {
   btn.disabled = true;
   btn.querySelector('span').textContent = '⏳ جاري تسجيل الدخول...';
 
-  if (!supabase) {
+  if (!supabaseClient) {
     // Demo mode
     await fakeDelay(1000);
     if (email === DEMO_EMAIL && pass === DEMO_PASS) {
@@ -1570,7 +1570,7 @@ async function handleLogin() {
   }
 
   try {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
     if (error) throw error;
 
     currentUser = data.user;
@@ -1590,9 +1590,9 @@ async function handleLogin() {
 // FETCH PROFILE
 // ============================================================
 async function fetchProfile() {
-  if (!supabase || !currentUser) return;
+  if (!supabaseClient || !currentUser) return;
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from('profiles')
       .select('*')
       .eq('id', currentUser.id)
@@ -1641,7 +1641,7 @@ function populateUserUI() {
 // LOAD DASHBOARD DATA
 // ============================================================
 async function loadDashboardData() {
-  if (!supabase) {
+  if (!supabaseClient) {
     loadDemoData();
     return;
   }
@@ -1654,27 +1654,27 @@ async function loadDashboardData() {
     const monthStart = new Date(Date.now() - 30*86400000).toISOString();
 
     // Total count
-    const { count: totalCount } = await supabase
+    const { count: totalCount } = await supabaseClient
       .from('vault_records')
       .select('*', { count:'exact', head:true })
       .eq('user_id', userId);
 
     // Today
-    const { count: todayCount } = await supabase
+    const { count: todayCount } = await supabaseClient
       .from('vault_records')
       .select('*', { count:'exact', head:true })
       .eq('user_id', userId)
       .gte('created_at', todayStart);
 
     // Week
-    const { count: weekCount } = await supabase
+    const { count: weekCount } = await supabaseClient
       .from('vault_records')
       .select('*', { count:'exact', head:true })
       .eq('user_id', userId)
       .gte('created_at', weekStart);
 
     // Month
-    const { count: monthCount } = await supabase
+    const { count: monthCount } = await supabaseClient
       .from('vault_records')
       .select('*', { count:'exact', head:true })
       .eq('user_id', userId)
@@ -1687,7 +1687,7 @@ async function loadDashboardData() {
     document.getElementById('stat-total-change').textContent = `${totalCount ?? 0} سجل مؤرشف`;
 
     // Recent records
-    const { data: recent } = await supabase
+    const { data: recent } = await supabaseClient
       .from('vault_records')
       .select('*')
       .eq('user_id', userId)
@@ -1780,7 +1780,7 @@ async function loadAllRecords() {
   const container = document.getElementById('all-records-container');
   container.innerHTML = `<div class="empty-state"><div class="spinner" style="margin:0 auto 16px;"></div><div class="empty-title">جاري التحميل...</div></div>`;
 
-  if (!supabase) {
+  if (!supabaseClient) {
     // Use demo
     document.getElementById('all-records-count').textContent = '7 سجلات (تجريبية)';
     const demoRecords = [
@@ -1797,7 +1797,7 @@ async function loadAllRecords() {
   }
 
   try {
-    const { data, count, error } = await supabase
+    const { data, count, error } = await supabaseClient
       .from('vault_records')
       .select('*', { count:'exact' })
       .eq('user_id', currentUser.id)
@@ -1858,7 +1858,7 @@ function renderChart(records) {
   });
 
   // Add fake variation for demo
-  if (!supabase) {
+  if (!supabaseClient) {
     days[0].count = 12; days[1].count = 8; days[2].count = 20;
     days[3].count = 15; days[4].count = 5; days[5].count = 18; days[6].count = 9;
   }
@@ -1900,7 +1900,7 @@ async function saveSettings() {
 
   if (!name) { showToast('⚠️ الاسم مطلوب', 'error'); return; }
 
-  if (!supabase) {
+  if (!supabaseClient) {
     currentProfile.full_name = name;
     currentProfile.business_type = type;
     populateUserUI();
@@ -1909,7 +1909,7 @@ async function saveSettings() {
   }
 
   try {
-    const { error } = await supabase.from('profiles').update({
+    const { error } = await supabaseClient.from('profiles').update({
       full_name: name, business_type: type
     }).eq('id', currentUser.id);
     if (error) throw error;
@@ -1926,8 +1926,8 @@ async function saveSettings() {
 // LOGOUT
 // ============================================================
 async function handleLogout() {
-  if (supabase) {
-    await supabase.auth.signOut().catch(()=>{});
+  if (supabaseClient) {
+    await supabaseClient.auth.signOut().catch(()=>{});
   }
   currentUser = null;
   currentProfile = null;
@@ -1993,9 +1993,9 @@ function fakeDelay(ms) {
 // CHECK SESSION ON LOAD
 // ============================================================
 async function checkSession() {
-  if (!supabase) return;
+  if (!supabaseClient) return;
   try {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) {
       currentUser = session.user;
       await fetchProfile();
